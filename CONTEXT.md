@@ -120,3 +120,82 @@ _Avoid_: Schema file, Upgrade, Patch
 The headless build of the same binary, compiled with `-tags server`. It serves the frontend and the PocketBase API over HTTP
 with no GUI dependencies.
 _Avoid_: Web mode, Headless mode, Docker mode
+
+## The writing workspace
+
+**Project**:
+A writing workspace: one `projects` record, one directory under `projects/` in the data directory, and one local Git
+repository. Documents, metadata and history are all scoped to it.
+_Avoid_: Book, Document (for the project), Workspace, Repository
+
+**Binder item**:
+One node of the ring binder: a folder or a document. It carries the title, the synopsis, the notes, the keywords, the label,
+the status, the custom metadata, the counts and the position among its siblings.
+_Avoid_: Node, File, Entry, Card
+
+**Folder**:
+A binder item that contains other items and has no body of its own.
+_Avoid_: Group, Container, Directory
+
+**Document**:
+A binder item with a Markdown body. The body is a file; the metadata is the record.
+_Avoid_: Section, Text, File, Chapter (a chapter is a title, not a kind)
+
+**Bucket**:
+The binder area an item belongs to: `draft` (the Manuscript), `research`, or `trash`. It is stored on the item, not derived
+from the path, and it travels with a moved subtree.
+_Avoid_: Area, Zone, Root, Group
+
+**Manuscript**:
+The `draft` bucket: the items that compile, count towards the word total and appear in the outliner.
+_Avoid_: Draft folder, Main text, Body
+
+**Trash**:
+The `trash` bucket. Trashing is a metadata move that remembers where the item came from; the file never moves. A trashed item
+is invisible to the editor, the search and the counts, and only a trashed item can be deleted permanently.
+_Avoid_: Bin, Recycle, Archive
+
+**Position**:
+The integer that orders an item among its siblings. A move renumbers the affected siblings, so the order is always dense.
+_Avoid_: Index, Rank, Order, Sort key
+
+**Markdown body**:
+The document text, stored as `documents/<item id>.md` inside the project. It is the only document format; there is no RTF or
+rich-text blob.
+_Avoid_: Content, Text, RTF, Body blob
+
+**Scrivenings**:
+The view that merges the documents below a folder into one reading and writing surface, with the sections still saved
+separately.
+_Avoid_: Merged view, Continuous mode, Draft view
+
+**Composition mode**:
+The full-screen writing surface that hides the binder and the inspector. Exiting restores the previous layout.
+_Avoid_: Focus mode, Zen mode, Full screen
+
+**Snapshot**:
+A Git commit plus the `snapshots` row that explains it: message, author, trigger, changed files and time. The commit holds
+the content; the row is the queryable index.
+_Avoid_: Save point, Backup, Version (a version is a revision)
+
+**Revision**:
+One commit as the history panel shows it: hash, parent, message, author, time and the changed files.
+_Avoid_: Version, Snapshot (a snapshot is the recorded pair), Commit (in UI text)
+
+**Trigger**:
+Why a snapshot exists: `manual`, `auto`, `edit`, `structural`, `compile`, `ai` or `restore`.
+_Avoid_: Reason, Cause, Source
+
+**Restore**:
+Writing the content of a revision back and committing it as a new revision. It never rewrites the history, so a restore is
+itself undoable.
+_Avoid_: Revert, Rollback, Reset
+
+**Reference sheet**:
+A character, location or item record with a name, a summary, notes, free-form fields and links to documents.
+_Avoid_: Card, Note, Entity, Character sheet (it covers all three kinds)
+
+**Layout**:
+The restored session state of a project: the active view, the split mode and document, the panel state, the expanded folders
+and the composition flag. It lives in the project record.
+_Avoid_: Session, UI state, Preferences

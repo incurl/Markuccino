@@ -6,7 +6,7 @@ The fastest way to start is to copy the repository and rename it. Copying keeps 
 are the parts that take the longest to get right.
 
 ```bash
-git clone https://github.com/incurl/valkyrie.git my-app
+git clone https://github.com/incurl/Markuccino.git my-app
 cd my-app
 git remote set-url origin https://github.com/incurl/my-app.git
 ```
@@ -32,7 +32,7 @@ named after the wrong project.
 | The Windows metadata | `build/windows/info.json` |
 | The MSIX manifests | `build/windows/msix/template.xml`, `build/windows/msix/app_manifest.xml` |
 | The NSIS installer | `build/windows/nsis/wails_tools.nsh` |
-| The Linux package | `build/linux/nfpm/nfpm.yaml`, `build/linux/valkyrie.desktop` |
+| The Linux package | `build/linux/nfpm/nfpm.yaml`, `build/linux/Markuccino.desktop` |
 | The Xcode project | `build/ios/project.pbxproj` |
 
 A blunt but effective approach for the bulk of it:
@@ -85,9 +85,9 @@ import (
     "context"
     "fmt"
 
-    "github.com/incurl/valkyrie/internal/console"
-    "github.com/incurl/valkyrie/internal/jobs"
-    "github.com/incurl/valkyrie/internal/pocketbase"
+    "github.com/incurl/Markuccino/internal/console"
+    "github.com/incurl/Markuccino/internal/jobs"
+    "github.com/incurl/Markuccino/internal/pocketbase"
 )
 
 // MyRunner talks to the remote API.

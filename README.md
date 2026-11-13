@@ -26,6 +26,53 @@ Wails webview
         same origin as the UI.                                   │
 ```
 
+## The writing workspace
+
+This build is not a bare scaffold any more: it carries a **Scrivener-style
+writing workspace** on top of the template. The foundation is unchanged —
+Wails v3 bindings, the embedded PocketBase, the event bridge, the console,
+the build tooling — and the writing domain is a new layer below it.
+
+```
+frontend/src/
+├── app/App.tsx              the workspace shell
+├── features/
+│   ├── projects/            the project chooser
+│   ├── binder/              the ring binder: tree, order, trash
+│   ├── editor/              Markdown editing, counts, split, Scrivenings
+│   ├── corkboard/           index cards with an editable synopsis
+│   ├── outliner/            the sortable, editable table
+│   ├── inspector/           metadata and reference sheets
+│   ├── history/             revisions, diffs, restore
+│   ├── ai/                  the persistent AI panel
+│   ├── console/, settings/  the scaffold's debugging aids
+│   └── queue/, submit/      the scaffold's generic job panels
+│
+internal/
+├── project/                 the writing domain
+│   ├── store.go             projects, paths, audit, commits
+│   ├── items.go             the binder tree and its lifecycle
+│   ├── documents.go         the Markdown bodies and the counts
+│   ├── snapshots.go         history, diff and restore
+│   └── vcs/                 the pure-Go Git adapter, behind an interface
+└── pocketbase/migrations/   the Scrivener schema
+```
+
+What works end to end: create a project, write Markdown in the binder's
+documents, organize them in folders, move, duplicate and trash them, edit
+the synopsis on a corkboard card, edit the outline inline, fill in the
+inspector and the reference sheets, take a snapshot, browse the Git
+history, read a diff, restore a document or the project, search the text,
+split the editor, enter composition mode, and come back after a restart to
+the same project, document, view and split.
+
+Three things are deliberately **not** in this build: the AI model and tool
+engine, the JavaScript/HTML extension runtime, and the compile/export step.
+The AI panel, the session schema, the extension tables and the compile
+presets are in place; see
+[docs/implementation-status.md](docs/implementation-status.md) for the
+full list of what is implemented, the assumptions, and what is deferred.
+
 ## What is in the box
 
 | Piece | Where | What it does |
@@ -211,23 +258,40 @@ Everything lives in `pb_data/` next to the executable:
 
 | Path | Contents |
 | --- | --- |
-| `pb_data/data.db` | The SQLite database (3 collections) |
+| `pb_data/data.db` | The SQLite database |
 | `pb_data/storage/` | The uploaded and generated files, served by PocketBase's native file route |
 | `pb_data/.valkyrie_key` | The AES-256-GCM key for the secrets (mode 0600) |
+| `pb_data/projects/<project id>/documents/` | The Markdown body of every document, named after its record id |
+| `pb_data/projects/<project id>/.git/` | The project's local Git repository |
 
 Set `VALKYRIE_DATA_DIR` to relocate it.
+
+A document's file name is its **record id**, not its title: renaming a
+chapter never moves a file, and duplicating one gets a file of its own.
+The binder bucket (Manuscript, Research, Trash) is metadata, so trashing a
+document never moves its file. The document body is always Markdown.
 
 ## Collections
 
 | Collection | Purpose |
 | --- | --- |
+| `projects` | The project identity, the workspace path, the settings and the restored layout |
+| `binder_items` | The tree: folders and documents, order, metadata, counts, trash state |
+| `reference_sheets` | Characters, locations and items, with their fields and document links |
+| `snapshots` | The queryable index of the Git commits |
+| `compile_presets` | The saved assembly settings |
+| `ai_sessions`, `ai_messages`, `tool_calls` | The AI session, transcript and tool-call trail |
+| `extensions`, `extension_logs` | The extension registry and its runtime log |
+| `audit_log` | The append-only operation trail |
 | `jobs` | The job metadata: the prompt, the parameters, the status, the result, the errors |
 | `artifacts` | The files a job produced or consumed, with their metadata |
 | `app_settings` | The encrypted secrets and the preferences |
 
-All writes go through the Go services: the `create`, `update` and `delete`
-rules are closed, so the frontend can only read. PocketBase's own rules,
-migrations, file fields and hooks are used as-is.
+The writing collections have **no access rules at all**: the frontend never
+talks to PocketBase, so the Go backend is the only reader and writer, and
+the writing data is not exposed by the server-mode HTTP API. The `jobs`
+and `artifacts` collections keep the scaffold's read-only public rules;
+`app_settings` has no rule, so the secrets stay in Go.
 
 ## Secrets
 
@@ -263,12 +327,15 @@ go run ./tools/e2e-check          # a live end-to-end run of the backend
 
 The end-to-end check runs the whole pipeline without a GUI: it applies the
 schema, submits a job, runs the stub runner, stores an artifact and
-fetches it back through PocketBase's file route.
+fetches it back through PocketBase's file route, then creates a project,
+saves a chapter, snapshots it, rewrites it, diffs the snapshot, restores
+it, reads the history and searches the body.
 
 ## Documentation
 
 | Document | Read it for |
 | --- | --- |
+| [docs/implementation-status.md](docs/implementation-status.md) | What the writing workspace does, the assumptions, and what is deferred |
 | [docs/architecture.md](docs/architecture.md) | Why the pieces are shaped the way they are |
 | [docs/porting.md](docs/porting.md) | The checklist for taking this template to a new application |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | The failures that cost time, and what fixes them |

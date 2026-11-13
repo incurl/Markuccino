@@ -2,6 +2,7 @@
 
 | Document | Read it for |
 | --- | --- |
+| [`implementation-status.md`](implementation-status.md) | What the writing workspace does today, the assumptions it makes and the work that is deferred. |
 | [`architecture.md`](architecture.md) | Why the pieces are shaped the way they are. Read it before changing the structure. |
 | [`porting.md`](porting.md) | The checklist for taking the template to a new application. |
 | [`troubleshooting.md`](troubleshooting.md) | The failures that cost time, and what actually fixes them. |
@@ -33,3 +34,8 @@ Valkyrie is a template. The plumbing every desktop application needs is done: an
 asset server so files are served from the UI's own origin, a generic job queue with persistence, bounded concurrency,
 cancellation and live event push, an encrypted secret store, a debug console, and the build tooling for every platform. The
 application supplies one thing: a `jobs.Runner` that does the work. Everything else keeps working.
+
+On top of that, this repository now carries a Scrivener-style writing workspace: the project and binder model, Markdown
+documents, the corkboard, the outliner, the inspector, reference sheets, composition mode, split views, snapshots and a local
+Git history. See [`implementation-status.md`](implementation-status.md) for the exact boundary between what is implemented and
+what is not.

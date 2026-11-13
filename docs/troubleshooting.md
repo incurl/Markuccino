@@ -208,7 +208,51 @@ different database and a different key file. Check the data directory first.
 
 ---
 
-## The audits
+## Shutdown and closing
+
+### The application crashes, or the whole desktop goes down, when the window is closed
+
+Two causes were found and both are addressed in the code:
+
+1. **WebKitGTK's DMA-BUF renderer on a virtual GPU.** On VMware, VirtualBox and QEMU guests, the teardown of the webview
+   goes through the host's SVGA/virtio driver and Mesa can abort in `svga_surface_destroy` (`context mismatch in
+   svga_surface_destroy` is printed on stderr). The application now sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` automatically
+   when the DMI vendor is a virtual machine. Setting the variable yourself always wins.
+   A writing application does not need GPU compositing, so this costs nothing.
+2. **Events emitted into a destroyed webview.** A background goroutine (a save finishing, a job being cancelled) could emit a
+   Wails event after the native window was gone. That is a native crash, not an error. The event bridge is now stopped as
+   part of the close sequence, before the window is destroyed.
+
+If it still crashes, run the binary from a terminal so the native crash output is visible, and check:
+
+```bash
+VALKYRIE_DATA_DIR=/tmp/check ./bin/Markuccino
+WEBKIT_DISABLE_COMPOSITING_MODE=1 VALKYRIE_DATA_DIR=/tmp/check ./bin/Markuccino
+```
+
+The second command disables compositing as well. If it is stable and the first is not, the crash is in the graphics stack,
+not in the application.
+
+**GoLand closing at the same time** is a separate failure. The application is a child process, so its segfault cannot take the
+IDE down. Check `~/.cache/JetBrains/GoLand*/log/idea.log` for the last lines before the gap and look for a JetBrains crash
+file (`java_error_in_goland*.log`). On the machine where this was reported, the log showed the Cline plugin answering a
+1.7 MB state subscription dozens of times a second, and a rejected `host.EnvService/shutdown` with a mismatched session token
+immediately before GoLand disappeared — a plugin/IDE problem, not the application.
+
+### The window takes about three seconds to close
+
+That is the fallback of the close handshake firing: the frontend did not answer `app:closing`. The close is cancelled, the
+event is emitted, the frontend saves the dirty editors and calls `RequestClose`; if it does not, the window is closed after
+three seconds so that it can never become unclosable. Check the browser console (or the generated bindings) — the usual cause
+is a frontend bundle built before the `app:closing` event existed.
+
+### Text typed just before closing is lost
+
+It no longer is. Closing is a handshake: the first close request is cancelled, every mounted editor flushes its dirty buffer
+through `frontend/src/features/editor/flush.ts`, and only when the saves resolve does the frontend call `RequestClose`. The
+900 ms autosave pause cannot lose the last sentence any more. If a save fails, that buffer stays dirty and the other buffers
+still close; the failure is logged.
+
 
 ### `tools/license-audit.py` reports `UNKNOWN` for a module
 

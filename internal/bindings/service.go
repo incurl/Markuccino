@@ -7,9 +7,10 @@
 package bindings
 
 import (
-	"github.com/incurl/valkyrie/internal/console"
-	"github.com/incurl/valkyrie/internal/jobs"
-	"github.com/incurl/valkyrie/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/console"
+	"github.com/incurl/Markuccino/internal/jobs"
+	"github.com/incurl/Markuccino/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/project"
 )
 
 // AppService is the main Wails service. It is bound to the frontend and
@@ -19,16 +20,42 @@ type AppService struct {
 	settings *pocketbase.SettingsStore
 	jobs     *jobs.Manager
 	console  *console.Log
+	projects *project.Store
+	// close is the window shutdown requested by the frontend after it has
+	// flushed its editors. It is nil in tests and in server mode.
+	close func()
 }
 
 // NewAppService creates the application service.
+//
+// closeRequest is called by RequestClose. It is a function rather than a
+// window reference because the service is created before the window.
 func NewAppService(
 	pb *pocketbase.Service,
 	settings *pocketbase.SettingsStore,
 	jobManager *jobs.Manager,
 	log *console.Log,
+	projects *project.Store,
+	closeRequest func(),
 ) *AppService {
-	return &AppService{pb: pb, settings: settings, jobs: jobManager, console: log}
+	return &AppService{
+		pb:       pb,
+		settings: settings,
+		jobs:     jobManager,
+		console:  log,
+		projects: projects,
+		close:    closeRequest,
+	}
+}
+
+// RequestClose closes the window after the frontend has flushed its
+// unsaved editors. The frontend calls it in response to app:closing.
+func (s *AppService) RequestClose() error {
+	if s.close == nil {
+		return nil
+	}
+	s.close()
+	return nil
 }
 
 // The service deliberately exposes no accessors for the objects it
@@ -117,6 +144,22 @@ func (s *AppService) SaveUI(ui pocketbase.UI) error {
 	return s.settings.SetUI(ui)
 }
 
+// GetLastProjectID returns the project that was open, or an empty string.
+func (s *AppService) GetLastProjectID() (string, error) {
+	if s.settings == nil {
+		return "", nil
+	}
+	return s.settings.GetLastProject()
+}
+
+// SetLastProjectID remembers which project is open.
+func (s *AppService) SetLastProjectID(projectID string) error {
+	if s.settings == nil {
+		return nil
+	}
+	return s.settings.SetLastProject(projectID)
+}
+
 // SubmitJob queues a job.
 func (s *AppService) SubmitJob(request jobs.Request) (jobs.Job, error) {
 	return s.jobs.Submit(request)
@@ -170,7 +213,7 @@ func (s *AppService) DeleteArtifact(artifactID string) error {
 }
 
 // AppName is the name of the application.
-const AppName = "Valkyrie"
+const AppName = "Markuccino"
 
 // AppVersion is the version of the application.
 const AppVersion = "0.1.0"

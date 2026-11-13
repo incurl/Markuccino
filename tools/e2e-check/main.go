@@ -14,8 +14,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/incurl/valkyrie/internal/jobs"
-	valkyriepb "github.com/incurl/valkyrie/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/jobs"
+	valkyriepb "github.com/incurl/Markuccino/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/project"
 )
 
 func main() {
@@ -123,6 +124,79 @@ func main() {
 	if rec.Code != 200 || rec.Body.Len() == 0 {
 		os.Exit(1)
 	}
+
+	// --- Writing pipeline -------------------------------------------
+	//
+	// The project, the binder, the Markdown file and the Git history,
+	// end to end. This is the path every editor action takes.
+	store := project.NewStore(svc.App(), svc.DataDir(), nil)
+
+	novel, err := store.CreateProject("E2E Novel")
+	if err != nil {
+		panic(err)
+	}
+	items, err := store.Items(novel.ID)
+	if err != nil {
+		panic(err)
+	}
+	var draftID string
+	for _, item := range items {
+		if item.ParentID == "" && item.Bucket == project.BucketDraft {
+			draftID = item.ID
+		}
+	}
+	if draftID == "" {
+		fmt.Println("   FAIL: the project has no draft root")
+		os.Exit(1)
+	}
+	fmt.Printf("6. Project created: %s (%d binder roots)\n", novel.ID, len(items))
+
+	chapter, err := store.CreateItem(novel.ID, draftID, project.KindDocument, "Chapter One")
+	if err != nil {
+		panic(err)
+	}
+	if _, err := store.SaveDocument(chapter.ID, "The first paragraph of the chapter.\n"); err != nil {
+		panic(err)
+	}
+	snapshot, err := store.CreateSnapshot(novel.ID, chapter.ID, "Before the rewrite")
+	if err != nil {
+		panic(err)
+	}
+	if _, err := store.SaveDocument(chapter.ID, "The rewritten paragraph, which is longer.\n"); err != nil {
+		panic(err)
+	}
+	diff, err := store.DiffRevision(novel.ID, chapter.ID, snapshot.CommitHash)
+	if err != nil {
+		panic(err)
+	}
+	if diff.Text == "" {
+		fmt.Println("   FAIL: the revision diff is empty")
+		os.Exit(1)
+	}
+	restored, err := store.RestoreDocument(chapter.ID, snapshot.CommitHash)
+	if err != nil {
+		panic(err)
+	}
+	if restored.Content != "The first paragraph of the chapter.\n" {
+		fmt.Printf("   FAIL: the restored content is %q\n", restored.Content)
+		os.Exit(1)
+	}
+	history, err := store.History(novel.ID, 0)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("7. Document saved, snapshotted (%s), diffed and restored\n", snapshot.CommitHash[:7])
+	fmt.Printf("8. History: %d revisions, newest %q\n", len(history), history[0].Message)
+
+	hits, err := store.Search(novel.ID, "paragraph", 10)
+	if err != nil {
+		panic(err)
+	}
+	if len(hits) == 0 {
+		fmt.Println("   FAIL: the search found no hit for a word in the document")
+		os.Exit(1)
+	}
+	fmt.Printf("9. Search: %d hit(s), first field %q\n", len(hits), hits[0].Field)
 
 	fmt.Println("\nEND TO END: PASS")
 }

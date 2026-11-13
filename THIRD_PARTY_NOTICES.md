@@ -16,6 +16,7 @@ tree is listed further down.
 | [Wails v3](https://github.com/wailsapp/wails) | The desktop shell: the window, the asset server, the service bindings and the event bus | MIT |
 | [PocketBase](https://github.com/pocketbase/pocketbase) | The embedded database: the schema, the migrations, the file storage and the REST API | MIT |
 | [dbx](https://github.com/pocketbase/dbx) | The database query builder PocketBase is built on | MIT |
+| [go-git](https://github.com/go-git/go-git) | The local Git repository behind the snapshot and history feature | Apache-2.0 |
 | [React](https://github.com/reactjs/react) | The UI | MIT |
 | [TanStack Query](https://github.com/TanStack/query) | The data layer: the queries, the mutations and the cache invalidation | MIT |
 | [Vite](https://github.com/vitejs/vite) | The frontend build and the dev server | MIT |

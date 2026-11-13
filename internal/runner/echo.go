@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/incurl/valkyrie/internal/console"
-	"github.com/incurl/valkyrie/internal/jobs"
-	"github.com/incurl/valkyrie/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/console"
+	"github.com/incurl/Markuccino/internal/jobs"
+	"github.com/incurl/Markuccino/internal/pocketbase"
 )
 
 // Echo is a runner that echoes the prompt back.

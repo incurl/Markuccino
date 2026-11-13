@@ -19,6 +19,11 @@ const (
 	SettingAPIKey = "app.api_key"
 	// SettingBaseURL holds the base URL of the remote API.
 	SettingBaseURL = "app.base_url"
+	// SettingLastProject holds the id of the project that was open, so
+	// the application reopens it on the next start. It is application
+	// state rather than project state, so it lives with the settings and
+	// not in a project's layout.
+	SettingLastProject = "app.last_project"
 )
 
 // UI holds the user interface preferences.
@@ -243,3 +248,22 @@ func (s *SettingsStore) GetBaseURL() (string, error) {
 // It points at a placeholder host on purpose: an application that talks
 // to a real API replaces it with its own default.
 const DefaultBaseURL = "https://api.example.com"
+
+// SetLastProject remembers which project was open.
+func (s *SettingsStore) SetLastProject(projectID string) error {
+	return s.setValue(SettingLastProject, projectID, false)
+}
+
+// GetLastProject returns the project that was open, or an empty string
+// when there is none.
+func (s *SettingsStore) GetLastProject() (string, error) {
+	var projectID string
+	found, err := s.getValue(SettingLastProject, false, &projectID)
+	if err != nil {
+		return "", err
+	}
+	if !found {
+		return "", nil
+	}
+	return projectID, nil
+}

@@ -9,20 +9,16 @@
  * checked in.
  */
 
-import * as AppServiceBindings from '../../bindings/github.com/incurl/valkyrie/internal/bindings/appservice';
-import * as BindingsModels from '../../bindings/github.com/incurl/valkyrie/internal/bindings/models';
-import * as JobsModels from '../../bindings/github.com/incurl/valkyrie/internal/jobs/models';
-import * as ConsoleModels from '../../bindings/github.com/incurl/valkyrie/internal/console/models';
+import * as AppServiceBindings from '../../bindings/github.com/incurl/Markuccino/internal/bindings/appservice';
+import * as BindingsModels from '../../bindings/github.com/incurl/Markuccino/internal/bindings/models';
+import * as JobsModels from '../../bindings/github.com/incurl/Markuccino/internal/jobs/models';
+import * as ConsoleModels from '../../bindings/github.com/incurl/Markuccino/internal/console/models';
+import * as ProjectModels from '../../bindings/github.com/incurl/Markuccino/internal/project/models';
 
-// The generated model classes are the source of truth for the shapes that
-// cross the Wails boundary. The status and kind fields are narrowed to
-// literal unions here, at the single point where the raw generated types
-// enter the application.
+// --- Queue models -----------------------------------------------------
+
 export type Job = JobsModels.Job & {
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
-  // The bindings are generated as interfaces, where a missing array is
-  // typed as nullable. The backend always sends an array, so it is
-  // normalised here.
   artifact_ids: string[];
   input_artifact_ids: string[];
   params: Record<string, unknown>;
@@ -34,26 +30,74 @@ export type Artifact = JobsModels.Artifact & {
 };
 export type ConsoleEntry = ConsoleModels.Entry;
 
-/**
- * The application settings as seen by the UI.
- *
- * The API key is never returned by the backend, only its presence.
- */
 export type Settings = BindingsModels.SettingsView;
 
+// --- Writing models ---------------------------------------------------
+
 /**
- * The Wails event name emitted when a job changes state.
+ * A project's restored session state. The generated type marks the
+ * expanded-folder array nullable; the backend always sends one.
  */
+export type ProjectLayout = Omit<ProjectModels.Layout, 'expanded_folder_ids'> & {
+  expanded_folder_ids: string[];
+};
+
+/** A project as the writing UI sees it. */
+export type Project = Omit<ProjectModels.Project, 'layout' | 'settings'> & {
+  layout: ProjectLayout;
+  settings: Record<string, unknown>;
+};
+
+/**
+ * A binder item. The generated type marks the arrays and maps nullable;
+ * the backend always sends them, so they are narrowed here once.
+ */
+export type BinderItem = Omit<ProjectModels.Item, 'keywords' | 'custom_meta'> & {
+  keywords: string[];
+  custom_meta: Record<string, unknown>;
+};
+
+/** The project plus its flat binder list. */
+export type Workspace = {
+  project: Project;
+  items: BinderItem[];
+};
+
+export type Document = Omit<ProjectModels.Document, 'item'> & {
+  item: BinderItem;
+};
+
+export type Section = ProjectModels.Section;
+export type Scrivenings = Omit<ProjectModels.Scrivenings, 'sections'> & {
+  sections: Section[];
+};
+
+export type ItemMeta = Omit<ProjectModels.ItemMeta, 'keywords' | 'custom_meta'> & {
+  keywords: string[];
+  custom_meta: Record<string, unknown>;
+};
+
+export type Revision = Omit<ProjectModels.Revision, 'files'> & { files: string[] };
+export type RevisionDiff = ProjectModels.RevisionDiff;
+export type Snapshot = Omit<ProjectModels.Snapshot, 'changed_files'> & {
+  changed_files: string[];
+};
+export type SearchHit = ProjectModels.SearchHit;
+export type ReferenceSheet = Omit<ProjectModels.ReferenceSheet, 'fields' | 'document_ids'> & {
+  fields: Record<string, unknown>;
+  document_ids: string[];
+};
+
+// --- Events -----------------------------------------------------------
+
 export const EVENT_JOB_UPDATED = 'job:updated';
-
-/**
- * The Wails event name emitted when a debug console entry is added.
- */
 export const EVENT_CONSOLE_ENTRY = 'console:entry';
+export const EVENT_BINDER_UPDATED = 'binder:updated';
+/** Emitted when the window is about to close; the UI must flush first. */
+export const EVENT_APP_CLOSING = 'app:closing';
 
-/**
- * Submits a job.
- */
+// --- Queue methods ----------------------------------------------------
+
 export function submitJob(request: {
   title?: string;
   prompt: string;
@@ -63,93 +107,204 @@ export function submitJob(request: {
   return AppServiceBindings.SubmitJob(request as never) as unknown as Promise<Job>;
 }
 
-/**
- * Cancels a pending or running job.
- */
 export function cancelJob(jobId: string): Promise<void> {
   return AppServiceBindings.CancelJob(jobId) as Promise<void>;
 }
 
-/**
- * Removes a finished job from the queue.
- */
 export function deleteJob(jobId: string): Promise<void> {
   return AppServiceBindings.DeleteJob(jobId) as Promise<void>;
 }
 
-/**
- * Re-runs a job with the same parameters.
- */
 export function retryJob(jobId: string): Promise<Job> {
   return AppServiceBindings.RetryJob(jobId) as unknown as Promise<Job>;
 }
 
-/**
- * Lists the recorded jobs.
- */
 export function listJobs(limit = 50): Promise<Job[]> {
   return AppServiceBindings.ListJobs(limit) as unknown as Promise<Job[]>;
 }
 
-/**
- * Lists the stored artifacts.
- *
- * An empty jobId lists every artifact.
- *
- * No panel calls this yet: the scaffold has no artifact panel. It is
- * here because the artifacts are part of the queue's contract, and the
- * add-frontend-panel skill uses it as the example of a list with
- * per-row actions.
- */
 export function listArtifacts(jobId = '', limit = 50): Promise<Artifact[]> {
   return AppServiceBindings.ListArtifacts(jobId, limit) as unknown as Promise<Artifact[]>;
 }
 
-/**
- * Removes a stored artifact.
- *
- * No panel calls this yet: see listArtifacts.
- */
 export function deleteArtifact(artifactId: string): Promise<void> {
   return AppServiceBindings.DeleteArtifact(artifactId) as Promise<void>;
 }
 
-/**
- * Returns the recorded debug console entries, oldest first.
- */
 export function listConsoleEntries(): Promise<ConsoleEntry[]> {
   return AppServiceBindings.ListConsoleEntries() as unknown as Promise<ConsoleEntry[]>;
 }
 
-/**
- * Discards the recorded debug console entries.
- */
 export function clearConsoleEntries(): Promise<void> {
   return AppServiceBindings.ClearConsoleEntries() as Promise<void>;
 }
 
-/**
- * Returns the application settings. The API key is never included.
- */
 export function getSettings(): Promise<Settings> {
   return AppServiceBindings.GetSettings() as unknown as Promise<Settings>;
 }
 
-/**
- * Stores the API credentials. An empty apiKey keeps the stored key.
- */
 export function saveCredentials(apiKey: string, baseUrl: string): Promise<void> {
   return AppServiceBindings.SaveCredentials(apiKey, baseUrl) as Promise<void>;
 }
 
-/**
- * Stores the interface preferences, including the zoom level.
- */
 export function saveUI(ui: { zoom: number; theme: string }): Promise<void> {
   return AppServiceBindings.SaveUI(ui as never) as unknown as Promise<void>;
+}
+
+/** Returns the project that was open, or an empty string. */
+export function getLastProjectID(): Promise<string> {
+  return AppServiceBindings.GetLastProjectID() as unknown as Promise<string>;
+}
+
+/** Remembers which project is open. */
+export function setLastProjectID(projectId: string): Promise<void> {
+  return AppServiceBindings.SetLastProjectID(projectId) as Promise<void>;
+}
+
+/**
+ * Closes the window after the editors have been flushed.
+ *
+ * It is the second half of the app:closing handshake.
+ */
+export function requestClose(): Promise<void> {
+  return AppServiceBindings.RequestClose() as Promise<void>;
+}
+
+// --- Project methods --------------------------------------------------
+
+/** Lists the projects, most recently updated first. */
+export function listProjects(): Promise<Project[]> {
+  return AppServiceBindings.ListProjects() as unknown as Promise<Project[]>;
+}
+
+/** Creates a project with its workspace and Git repository. */
+export function createProject(name: string): Promise<Project> {
+  return AppServiceBindings.CreateProject(name) as unknown as Promise<Project>;
+}
+
+export function renameProject(projectId: string, name: string): Promise<Project> {
+  return AppServiceBindings.RenameProject(projectId, name) as unknown as Promise<Project>;
+}
+
+export function deleteProject(projectId: string): Promise<void> {
+  return AppServiceBindings.DeleteProject(projectId) as Promise<void>;
+}
+
+/** Returns the project and its flat binder list. */
+export function getWorkspace(projectId: string): Promise<Workspace> {
+  return AppServiceBindings.GetWorkspace(projectId) as unknown as Promise<Workspace>;
+}
+
+export function saveLayout(projectId: string, layout: ProjectLayout): Promise<void> {
+  return AppServiceBindings.SaveLayout(projectId, layout as never) as Promise<void>;
+}
+
+/** Replaces the per-project preferences. */
+export function saveProjectSettings(
+  projectId: string,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  return AppServiceBindings.SaveProjectSettings(projectId, settings as never) as Promise<void>;
+}
+
+export function setLastOpenItem(projectId: string, itemId: string): Promise<void> {
+  return AppServiceBindings.SetLastOpenItem(projectId, itemId) as Promise<void>;
+}
+
+export function createBinderItem(
+  projectId: string,
+  parentId: string,
+  kind: 'folder' | 'document',
+  title = '',
+): Promise<BinderItem> {
+  return AppServiceBindings.CreateBinderItem(projectId, parentId, kind, title) as unknown as Promise<BinderItem>;
+}
+
+export function renameBinderItem(itemId: string, title: string): Promise<BinderItem> {
+  return AppServiceBindings.RenameBinderItem(itemId, title) as unknown as Promise<BinderItem>;
+}
+
+export function updateBinderItem(itemId: string, meta: ItemMeta): Promise<BinderItem> {
+  return AppServiceBindings.UpdateBinderItem(itemId, meta as never) as unknown as Promise<BinderItem>;
+}
+
+export function moveBinderItem(itemId: string, parentId: string, index: number): Promise<BinderItem> {
+  return AppServiceBindings.MoveBinderItem(itemId, parentId, index) as unknown as Promise<BinderItem>;
+}
+
+export function trashBinderItem(itemId: string): Promise<BinderItem> {
+  return AppServiceBindings.TrashBinderItem(itemId) as unknown as Promise<BinderItem>;
+}
+
+export function restoreBinderItem(itemId: string): Promise<BinderItem> {
+  return AppServiceBindings.RestoreBinderItem(itemId) as unknown as Promise<BinderItem>;
+}
+
+export function deleteBinderItem(itemId: string): Promise<void> {
+  return AppServiceBindings.DeleteBinderItem(itemId) as Promise<void>;
+}
+
+export function duplicateBinderItem(itemId: string): Promise<BinderItem> {
+  return AppServiceBindings.DuplicateBinderItem(itemId) as unknown as Promise<BinderItem>;
+}
+
+export function readDocument(itemId: string): Promise<Document> {
+  return AppServiceBindings.ReadDocument(itemId) as unknown as Promise<Document>;
+}
+
+export function saveDocument(itemId: string, content: string): Promise<Document> {
+  return AppServiceBindings.SaveDocument(itemId, content) as unknown as Promise<Document>;
+}
+
+export function readScrivenings(itemIds: string[]): Promise<Scrivenings> {
+  return AppServiceBindings.ReadScrivenings(itemIds) as unknown as Promise<Scrivenings>;
+}
+
+export function saveScrivenings(sections: Section[]): Promise<Scrivenings> {
+  return AppServiceBindings.SaveScrivenings(sections as never) as unknown as Promise<Scrivenings>;
+}
+
+export function createSnapshot(projectId: string, itemId: string, message: string): Promise<Snapshot> {
+  return AppServiceBindings.CreateSnapshot(projectId, itemId, message) as unknown as Promise<Snapshot>;
+}
+
+export function listSnapshots(projectId: string, itemId = '', limit = 100): Promise<Snapshot[]> {
+  return AppServiceBindings.ListSnapshots(projectId, itemId, limit) as unknown as Promise<Snapshot[]>;
+}
+
+export function listProjectHistory(projectId: string, limit = 100): Promise<Revision[]> {
+  return AppServiceBindings.ListProjectHistory(projectId, limit) as unknown as Promise<Revision[]>;
+}
+
+export function diffRevision(projectId: string, itemId: string, hash: string): Promise<RevisionDiff> {
+  return AppServiceBindings.DiffRevision(projectId, itemId, hash) as unknown as Promise<RevisionDiff>;
+}
+
+export function restoreDocument(itemId: string, hash: string): Promise<Document> {
+  return AppServiceBindings.RestoreDocument(itemId, hash) as unknown as Promise<Document>;
+}
+
+export function restoreProject(projectId: string, hash: string): Promise<Workspace> {
+  return AppServiceBindings.RestoreProject(projectId, hash) as unknown as Promise<Workspace>;
+}
+
+export function searchProject(projectId: string, query: string, limit = 50): Promise<SearchHit[]> {
+  return AppServiceBindings.SearchProject(projectId, query, limit) as unknown as Promise<SearchHit[]>;
+}
+
+export function listReferenceSheets(projectId: string, kind = ''): Promise<ReferenceSheet[]> {
+  return AppServiceBindings.ListReferenceSheets(projectId, kind) as unknown as Promise<ReferenceSheet[]>;
+}
+
+export function saveReferenceSheet(sheet: ReferenceSheet): Promise<ReferenceSheet> {
+  return AppServiceBindings.SaveReferenceSheet(sheet as never) as unknown as Promise<ReferenceSheet>;
+}
+
+export function deleteReferenceSheet(sheetId: string): Promise<void> {
+  return AppServiceBindings.DeleteReferenceSheet(sheetId) as Promise<void>;
 }
 
 /**
  * The generated model classes, re-exported for callers that need them.
  */
-export { JobsModels, BindingsModels, ConsoleModels };
+export { JobsModels, BindingsModels, ConsoleModels, ProjectModels };

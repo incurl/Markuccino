@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=valkyrie
-Exec=valkyrie
-Icon=valkyrie
+Name=Markuccino
+Exec=Markuccino
+Icon=Markuccino
 Categories=Development;
 Terminal=false
 Keywords=wails

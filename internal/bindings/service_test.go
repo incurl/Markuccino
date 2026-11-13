@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/incurl/valkyrie/internal/console"
-	"github.com/incurl/valkyrie/internal/jobs"
-	"github.com/incurl/valkyrie/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/console"
+	"github.com/incurl/Markuccino/internal/jobs"
+	"github.com/incurl/Markuccino/internal/pocketbase"
+	"github.com/incurl/Markuccino/internal/project"
 )
 
 // newTestService creates an application service backed by a throwaway
@@ -31,8 +32,9 @@ func newTestService(t *testing.T, runner jobs.Runner) (*AppService, *jobs.Manage
 
 	log := console.New()
 	manager := jobs.NewManager(pb.App(), jobs.WithRunner(runner), jobs.WithLog(log))
+	projects := project.NewStore(pb.App(), pb.DataDir(), log)
 
-	return NewAppService(pb, settings, manager, log), manager
+	return NewAppService(pb, settings, manager, log, projects, nil), manager
 }
 
 // okRunner is a runner that always succeeds.
@@ -40,6 +42,29 @@ func okRunner() jobs.Runner {
 	return jobs.RunnerFunc(func(ctx context.Context, job jobs.Job) (*jobs.Result, error) {
 		return &jobs.Result{}, nil
 	})
+}
+
+// TestRequestCloseCallsTheHandler verifies the second half of the close
+// handshake reaches the window.
+func TestRequestCloseCallsTheHandler(t *testing.T) {
+	called := false
+	service := &AppService{close: func() { called = true }}
+
+	if err := service.RequestClose(); err != nil {
+		t.Fatalf("request close: %v", err)
+	}
+	if !called {
+		t.Fatal("RequestClose did not call the window closer")
+	}
+}
+
+// TestRequestCloseWithoutAHandlerIsANoOp covers the tests and server
+// mode, where there is no window to close.
+func TestRequestCloseWithoutAHandlerIsANoOp(t *testing.T) {
+	service := &AppService{}
+	if err := service.RequestClose(); err != nil {
+		t.Fatalf("request close without a handler: %v", err)
+	}
 }
 
 // waitForStatus waits until the job reaches one of the wanted statuses.
